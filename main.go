@@ -14,18 +14,20 @@ import (
 )
 
 var (
-	reqs      int
-	max       int
-	mailingid int
-	found     int
-	scrapeurl string
+	reqs         int
+	max          int
+	mailingid    int
+	formatcoupon bool
+	found        int
+	scrapeurl    string
 )
 
 func init() {
-	flag.IntVar(&reqs, "reqs", 20000, "Total requests")
-	flag.IntVar(&max, "concurrent", 20, "Maximum concurrent requests")                                                    // Prevents server from
-	flag.IntVar(&mailingid, "mailingid", 27917331594, "Mailing ID to start on")                                           // Get a recent mailingid from an Arby's promo email by clicking to view print version and getting the query value for 'MailingID' from the url.
-	flag.StringVar(&scrapeurl, "scrapeurl", "http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=", "URL to scape") // Get by viewing a printable version of an arbys offer and copy the url.
+	flag.IntVar(&reqs, "reqs", 500, "Total requests")                                                                     // How many MailingID vaules you want to check. This scraper only scrapes values higher than this one. If you want old or more coupons use a lower number for the MailingID and increase the total requests.
+	flag.IntVar(&max, "concurrent", 45, "Maximum concurrent requests")                                                    // Prevents "Too many open files" error and timeouts.
+	flag.IntVar(&mailingid, "mailingid", 27917361605, "Mailing ID to start on")                                           // Get a recent MailingID from an Arby's promo email by clicking to view print version and getting the query value for 'MailingID' from the url. URL Example from 10/25/2017: http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=27917361605
+	flag.StringVar(&scrapeurl, "scrapeurl", "http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=", "URL to scape") // This was found by viewing a printable version of an Arby's promo email and removing the extra query values from the URL.
+	flag.BoolVar(&formatcoupon, "formatcoupon", true, "Remove the store text and expiration dates.")                      // Remove the "Offer valid only at:" text and expiration dates.
 }
 
 type Response struct {
@@ -62,10 +64,20 @@ func worker(t *http.Transport, reqChan chan *http.Request, respChan chan Respons
 	}
 }
 
+// Formatter
+func formatCoupon(couponHTML string) (string, error) {
+	reg, err := regexp.Compile("(?i)Offer expires (\\d{1,2}/\\d{1,2}/\\d{2,4})") // Remove expiration dates.
+	if err != nil {
+		return "", err
+	}
+	return reg.ReplaceAllString(strings.Replace(couponHTML, "Offer valid only at:", "", -1), ""), nil // Remove "valid only at location" and expiration dates. Store id query value must not be set in url.
+}
+
 // Consumer
 func consumer(respChan chan Response) int64 {
 	var (
-		conns int64
+		conns      int64
+		HTMLString string
 	)
 	for conns < int64(reqs) {
 		select {
@@ -77,14 +89,15 @@ func consumer(respChan chan Response) int64 {
 					if r.ContentLength != 117 { // a content length of 117 is the 'not found' error page.
 						log.Println(r.Request.URL.String())
 						body, err := ioutil.ReadAll(r.Body)
-						// Save the offer to disk
-						body_stripped := strings.Replace(string(body), "Offer valid only at:", "", -1) // Remove valid only at location. Store id must not be set in url.
-						reg, err := regexp.Compile("(?i)Offer expires (\\d{1,2}/\\d{1,2}/\\d{2,4})")   // Remove expiration dates
-						if err != nil {
-							log.Fatal(err)
+						if formatcoupon {
+							HTMLString, err = formatCoupon(string(body))
+							if err != nil {
+								log.Fatal(err)
+							}
+							body = []byte(HTMLString)
 						}
-						body_stripped = reg.ReplaceAllString(body_stripped, "")
-						err = ioutil.WriteFile(r.Request.URL.Query().Get("MailingID")+".html", []byte(body_stripped), 0644) // MailingID is used as a unique file name.
+						// Save the offer to disk
+						err = ioutil.WriteFile(r.Request.URL.Query().Get("MailingID")+".html", body, 0644) // MailingID is used as a unique file name.
 						if err != nil {
 							log.Fatal(err)
 						}
