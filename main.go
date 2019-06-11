@@ -23,11 +23,11 @@ var (
 )
 
 func init() {
-	flag.IntVar(&reqs, "reqs", 500, "Total requests")                                                                     // How many MailingID vaules you want to check. This scraper only scrapes values higher than this one. If you want old or more coupons use a lower number for the MailingID and increase the total requests.
-	flag.IntVar(&max, "concurrent", 45, "Maximum concurrent requests")                                                    // Prevents "Too many open files" error and timeouts.
-	flag.IntVar(&mailingid, "mailingid", 27917361605, "Mailing ID to start on")                                           // Get a recent MailingID from an Arby's promo email by clicking to view print version and getting the query value for 'MailingID' from the url. URL Example from 10/25/2017: http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=27917361605
-	flag.StringVar(&scrapeurl, "scrapeurl", "http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=", "URL to scape") // This was found by viewing a printable version of an Arby's promo email and removing the extra query values from the URL.
-	flag.BoolVar(&formatcoupon, "formatcoupon", true, "Remove the 'Offer valid only at:' text and expiration dates.")     // Remove the "Offer valid only at:" text and expiration dates.
+	flag.IntVar(&reqs, "total", 500, "Total requests")                                                              // How many MailingIDs you want to check. If you want old or more coupons use a lower (older) number for the MailingID and/or increase the total requests.
+	flag.IntVar(&max, "concurrent", 45, "Maximum concurrent requests")                                              // Prevents "Too many open files" error and timeouts.
+	flag.IntVar(&mailingid, "id", 27917361605, "Mailing ID to start on")                                            // Get a recent MailingID from an Arby's promo email by clicking to view print version and getting the query value for 'MailingID' from the url. URL Example from 10/25/2017: http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=27917361605
+	flag.StringVar(&scrapeurl, "url", "http://arbys.fbmta.com/members/ViewMailing.aspx?MailingID=", "URL to scape") // Found by viewing a printable version of an Arby's promo email and removing the query values from the URL.
+	flag.BoolVar(&formatcoupon, "format", true, "Remove the 'Offer valid only at:' text and expiration dates.")     // Remove the "Offer valid only at:" text and expiration dates.
 }
 
 type Response struct {
